@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
@@ -33,6 +32,33 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--g
 input::placeholder, textarea::placeholder { color: #a0aec0; }
 textarea { min-width: 0; width: 100%; min-height: 100px; padding: 14px 18px; border-radius: var(--border-radius-input); border: 1px solid #e2e8f0; background-color: var(--bg-input); color: var(--text-input); font-family: inherit; font-size: 14px; resize: vertical; }
 .small { flex: .6; }
+
+/* Estilo dos campos com título e explicação */
+.campo-data {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.campo-data label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-label);
+}
+
+.campo-data small {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #84909c;
+}
+
+.campo-data input {
+  width: 100%;
+  flex: none;
+}
+
 .checkbox-container { display: flex; align-items: center; gap: 12px; font-weight: 600; font-size: 13px; color: var(--text-label); cursor: pointer; user-select: none; background: var(--bg-input); padding: 0 20px; border-radius: var(--border-radius-input); min-height: 52px; border: 1px solid #e2e8f0; flex: 1; transition: background .2s; }
 .checkbox-container:hover { background: #edf2f7; }
 .checkbox-container input { flex: none; width: 18px; height: 18px; cursor: pointer; margin: 0; }
@@ -484,13 +510,23 @@ function criarPessoa(numeroGeracao, subGeracao = null) {
 
   div.innerHTML = `
     <div class="title"></div>
+
     <div class="row">
       <input placeholder="Nome completo" class="nome">
-      <input placeholder="Data nascimento" class="nasc small" type="date">
+
+      <div class="campo-data">
+        <label>Data de nascimento</label>
+        <input class="nasc small" type="date" aria-label="Data de nascimento">
+        <small>Informe a data em que a pessoa nasceu.</small>
+      </div>
     </div>
 
     <div class="row campo-data-registro-portugal hidden">
-      <input placeholder="Data de registro" class="data-registro" type="date" aria-label="Data de registro">
+      <div class="campo-data">
+        <label>Data de registro</label>
+        <input class="data-registro" type="date" aria-label="Data de registro">
+        <small>Informe a data em que o nascimento foi registrado no cartório.</small>
+      </div>
     </div>
 
     <div class="portugal-extra campo-origem-portuguesa hidden">
@@ -500,10 +536,20 @@ function criarPessoa(numeroGeracao, subGeracao = null) {
         <option value="originario">Português originário</option>
         <option value="reconhecido">Português reconhecido</option>
       </select>
+
       <div class="dados-reconhecimento hidden" style="margin-top:15px">
         <div class="row">
-          <input class="artigo-reconhecimento" placeholder="Artigo pelo qual foi reconhecido">
-          <input class="data-reconhecimento" type="date" aria-label="Data do reconhecimento">
+          <div class="campo-data">
+            <label>Artigo</label>
+            <input class="artigo-reconhecimento" placeholder="Artigo pelo qual foi reconhecido">
+            <small>Informe o artigo legal pelo qual o português foi reconhecido.</small>
+          </div>
+
+          <div class="campo-data">
+            <label>Data do reconhecimento</label>
+            <input class="data-reconhecimento" type="date" aria-label="Data do reconhecimento">
+            <small>Informe a data em que a nacionalidade portuguesa foi reconhecida.</small>
+          </div>
         </div>
       </div>
     </div>
@@ -1017,8 +1063,6 @@ function gerarPDF() {
     if (tipoCidadania === "portuguesa" && numeroGeracao > 1) {
       dadosFicha.push(["Data de registro", c.querySelector(".data-registro")?.value.trim() || "-"]);
     }
-
-    if (casou) dadosFicha.push(["Nome do Cônjuge", conjuge]);
 
     if (
       tipoCidadania === "portuguesa" &&
