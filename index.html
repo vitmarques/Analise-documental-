@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
@@ -106,7 +107,6 @@ button:hover { background: #000; transform: translateY(-1px); }
           <option value="filho-maior">Filho Maior</option>
           <option value="filho-menor">Filho Menor</option>
           <option value="casamento">Processo por Casamento</option>
-          <option value="transcricao">Transcrição de Casamento</option>
           <option value="homologacao">Homologação de Divórcio</option>
         </select>
       </div>
@@ -130,6 +130,7 @@ button:hover { background: #000; transform: translateY(-1px); }
 
   <div class="footer"><button class="btn-submit" onclick="gerarPDF()">GERAR PDF</button></div>
 </div>
+
 <script>
 const parentesco = { 1: "Ascendente de origem", 2: "Filho(a)", 3: "Neto(a)", 4: "Bisneto(a)", 5: "Trineto(a)" };
 let proximoIdDivergencia = 1;
@@ -144,31 +145,28 @@ function alterarTipoCidadania() {
   campoProcesso.classList.toggle("hidden", tipo !== "portuguesa");
   document.getElementById("tipo-processo-portugues").value = "";
   document.getElementById("portugal-documentos").classList.add("hidden");
-  document.getElementById("box-genealogia").classList.toggle("hidden", tipo === "" || (tipo === "portuguesa"));
+  document.getElementById("box-genealogia").classList.toggle("hidden", tipo === "" || tipo === "portuguesa");
   document.getElementById("titulo-genealogia").textContent = "Árvore Genealógica (Gerações)";
   document.getElementById("btn-add-geracao").textContent = "+ Adicionar Geração";
   document.getElementById("geracoes").innerHTML = "";
-  if (tipo === "alema") {
-    criarPessoa(1);
-  }
+  if (tipo === "alema") criarPessoa(1);
 }
 
 function alterarProcessoPortugues() {
   const processo = document.getElementById("tipo-processo-portugues").value;
   const genealogico = processosGenealogicosPortugal.includes(processo);
-  const documental = ["casamento", "transcricao", "homologacao"].includes(processo);
+  const documental = ["casamento", "homologacao"].includes(processo);
   const box = document.getElementById("box-genealogia");
   const docs = document.getElementById("portugal-documentos");
-  const exibePessoaPortuguesa = documental;
 
-  box.classList.toggle("hidden", !(genealogico || exibePessoaPortuguesa));
+  box.classList.toggle("hidden", !(genealogico || documental));
   docs.classList.toggle("hidden", !documental);
 
   document.getElementById("titulo-genealogia").textContent = documental ? "Dados do português / linha familiar" : "Linha Familiar";
   document.getElementById("btn-add-geracao").textContent = ["casamento", "homologacao"].includes(processo) ? "+ Adicionar cônjuge do português" : "+ Adicionar pessoa / geração";
   document.getElementById("geracoes").innerHTML = "";
 
-  if (genealogico || exibePessoaPortuguesa) {
+  if (genealogico || documental) {
     criarPessoa(1);
     document.querySelectorAll(".same-generation-button").forEach(btn => btn.classList.add("no-same-generation"));
   }
@@ -217,7 +215,6 @@ function toggleRequerentePortugalDocumental(checkbox) {
   }
 }
 
-
 function alternarCampoCondicional(radio, seletor, valorMostrar = "Sim") {
   const container = radio.closest(".portugal-extra") || radio.closest("#campos-processo-portugues") || radio.parentElement?.parentElement;
   const alvo = (container?.matches(seletor) ? container : container?.querySelector(seletor)) || document.querySelector(seletor);
@@ -225,15 +222,30 @@ function alternarCampoCondicional(radio, seletor, valorMostrar = "Sim") {
   if (alvo && (radio.value !== valorMostrar || !radio.checked)) alvo.querySelectorAll("input, select, textarea").forEach(el => el.value = "");
 }
 
-function atualizarTipoRequerenteTranscricao(radio) {
-  const campos = document.getElementById("campos-processo-portugues");
-  const escolhido = radio.value;
-  campos.querySelectorAll(".pt-dados-requerente-transcricao").forEach(el => el.classList.toggle("hidden", escolhido !== "terceiro"));
-  campos.querySelectorAll(".pt-parentesco-requerente-transcricao").forEach(el => el.classList.toggle("hidden", escolhido !== "terceiro"));
-  const nome = campos.querySelector(".pt-nome-terceiro");
-  if (nome) nome.classList.toggle("hidden", escolhido !== "terceiro");
-  const dados = campos.querySelector(".pt-dados-requerente-nubente");
-  if (dados) dados.classList.toggle("hidden", escolhido === "terceiro");
+function togglePerfilhacao(radio) {
+  const bloco = radio.closest(".perfilhacao-section");
+  const detalhes = bloco?.querySelector(".perfilhacao-detalhes");
+  if (!detalhes) return;
+
+  const mostrar = radio.checked && radio.value === "Sim";
+  detalhes.classList.toggle("hidden", !mostrar);
+
+  if (!mostrar) {
+    detalhes.querySelectorAll("select, input, textarea").forEach(el => el.value = "");
+  }
+}
+
+function toggleReconhecimento(select) {
+  const card = select.closest(".card");
+  const detalhes = card?.querySelector(".dados-reconhecimento");
+  if (!detalhes) return;
+
+  const mostrar = select.value === "reconhecido";
+  detalhes.classList.toggle("hidden", !mostrar);
+
+  if (!mostrar) {
+    detalhes.querySelectorAll("input").forEach(el => el.value = "");
+  }
 }
 
 function campoPortugal(rotulo, classe, tipo = "text", placeholder = "") {
@@ -251,7 +263,6 @@ function montarCamposProcessoPortugal(processo) {
     campos.innerHTML = `
       <div class="title">Dados do Assento de casamento português</div>
       <div class="row"><input class="pt-data-casamento" type="date" aria-label="Data do casamento"><input class="pt-tempo-casados" type="number" min="0" placeholder="Tempo de casados (anos)"></div>
-      <div class="row"><input class="pt-local-nascimento-portugues" placeholder="Local de nascimento do português"><input class="pt-local-nascimento-conjuge" placeholder="Local de nascimento do cônjuge"></div>
       <div class="row"><input class="pt-local-casamento" placeholder="Local do casamento / conservatória"><input class="pt-numero-assento-casamento" placeholder="Número/ano do assento de casamento"></div>
       <div class="portugal-extra">
         <div class="field-label">A procuração está correta?</div>
@@ -264,37 +275,6 @@ function montarCamposProcessoPortugal(processo) {
     adicionarDocumentoPortugues("Assento de nascimento do português");
     adicionarDocumentoPortugues("Assento de casamento");
     adicionarDocumentoPortugues("Certidão de nascimento do cônjuge/requerente");
-  } else if (processo === "transcricao") {
-    campos.innerHTML = `
-      <div class="title">Dados do cônjuge do português</div>
-      <div class="row"><input class="pt-conjuge-1" placeholder="Nome completo do primeiro nubente"><input class="pt-nascimento-1" type="date" aria-label="Data de nascimento do primeiro nubente"></div>
-      <div class="row"><input class="pt-local-nascimento-1" placeholder="Local de nascimento do primeiro nubente"><input class="pt-estado-civil-1" placeholder="Estado civil do primeiro nubente na data do casamento"></div>
-      <div class="row"><input class="pt-conjuge-2" placeholder="Nome completo do segundo nubente"><input class="pt-nascimento-2" type="date" aria-label="Data de nascimento do segundo nubente"></div>
-      <div class="row"><input class="pt-local-nascimento-2" placeholder="Local de nascimento do segundo nubente"><input class="pt-estado-civil-2" placeholder="Estado civil do segundo nubente na data do casamento"></div>
-      <div class="portugal-extra">
-        <div class="field-label">O nome de algum nubente foi alterado?</div>
-        <div class="radio-wrap"><label><input type="radio" name="pt-transcricao-nome-alterado" value="Não" onchange="alternarCampoCondicional(this, '.pt-como-nome-alterado-transcricao')"> Não</label><label><input type="radio" name="pt-transcricao-nome-alterado" value="Sim" onchange="alternarCampoCondicional(this, '.pt-como-nome-alterado-transcricao')"> Sim</label></div>
-        <div class="row pt-como-nome-alterado-transcricao hidden"><input class="pt-como-nome-alterado-transcricao-input" placeholder="Informe qual nubente e como o nome foi alterado"></div>
-      </div>
-      <div class="title" style="margin-top:22px">Quem será o requerente?</div>
-      <div class="portugal-extra">
-        <div class="radio-wrap">
-          <label><input type="radio" name="pt-requerente-transcricao" value="nubente1" onchange="atualizarTipoRequerenteTranscricao(this)"> Primeiro nubente</label>
-          <label><input type="radio" name="pt-requerente-transcricao" value="nubente2" onchange="atualizarTipoRequerenteTranscricao(this)"> Segundo nubente</label>
-          <label><input type="radio" name="pt-requerente-transcricao" value="terceiro" onchange="atualizarTipoRequerenteTranscricao(this)"> Terceiro</label>
-        </div>
-        <div class="pt-dados-requerente-nubente hidden"><div class="row"><input class="pt-idade" type="number" min="0" placeholder="Idade do nubente requerente"><input class="pt-residencia-nubente-requerente" placeholder="País de residência do requerente"></div><div class="row"><select class="pt-doc-requerente-tipo"><option value="">Tipo de documento</option><option value="Passaporte">Passaporte</option><option value="CNH">CNH</option><option value="RG">RG</option></select><input class="pt-doc-requerente-num" placeholder="Número do documento do requerente"><input class="pt-doc-requerente-validade" type="date" aria-label="Validade do documento do requerente"></div></div>
-        <div class="pt-dados-requerente-transcricao hidden"><div class="row"><input class="pt-nome-terceiro" placeholder="Nome completo do terceiro requerente"><input class="pt-idade-terceiro" type="number" min="0" placeholder="Idade do terceiro requerente"></div><div class="row"><select class="pt-terceiro-doc-tipo"><option value="">Tipo de documento</option><option value="Passaporte">Passaporte</option><option value="CNH">CNH</option><option value="RG">RG</option></select><input class="pt-terceiro-doc-num" placeholder="Número do documento do terceiro"><input class="pt-terceiro-doc-validade" type="date" aria-label="Validade do documento do terceiro"></div></div>
-        <div class="row pt-parentesco-requerente-transcricao hidden"><input class="pt-parentesco-nubente1" placeholder="Grau de parentesco com o primeiro nubente"><input class="pt-parentesco-nubente2" placeholder="Grau de parentesco com o segundo nubente"></div>
-        <div class="field-label" style="margin-top:14px">Procuração está correta?</div>
-        <div class="radio-wrap"><label><input type="radio" name="pt-procuracao-transcricao" value="Sim"> Sim</label><label><input type="radio" name="pt-procuracao-transcricao" value="Não"> Não</label></div>
-      </div>
-      <div class="title" style="margin-top:22px">Dados da certidão brasileira de casamento</div>
-      <div class="row"><input class="pt-data-casamento" type="date" aria-label="Data do casamento"><input class="pt-local-casamento" placeholder="Local do casamento"></div>
-      <div class="row"><input class="pt-regime" placeholder="Regime de bens"><input class="pt-residencia-casamento" placeholder="Local de residência dos nubentes na data do casamento"></div>`;
-    adicionarDocumentoPortugues("Assento de nascimento do cônjuge português");
-    adicionarDocumentoPortugues("Certidão brasileira de casamento");
-    adicionarDocumentoPortugues("Certidão de nascimento do outro nubente");
   } else {
     campos.innerHTML = `
       <div class="title">Dados do casamento e do divórcio</div>
@@ -313,6 +293,7 @@ function montarCamposProcessoPortugal(processo) {
     adicionarDocumentoPortugues("Assento de casamento");
     adicionarDocumentoPortugues("Sentença de divórcio e trânsito em julgado");
   }
+
   const observacoes = document.createElement("div");
   observacoes.className = "card";
   observacoes.innerHTML = '<div class="title">Observações gerais do processo</div><textarea class="pt-observacoes-processo" placeholder="Digite as observações gerais do processo"></textarea>';
@@ -346,6 +327,7 @@ function adicionarDocumentoPortugues(nomeInicial = "") {
 
 function atualizarTitulos() {
   document.querySelectorAll("#geracoes .card").forEach((card) => {
+    if (card.classList.contains("cartao-conjuge-processo")) return;
     const numeroGeracao = Number(card.dataset.geracao) || 1;
     const subGeracao = card.dataset.subgeracao || "";
     const parentescoTexto = parentesco[numeroGeracao] || "Descendente";
@@ -389,32 +371,44 @@ function toggleResidenciaRequerente(radio, mostrar) {
 }
 
 function toggleRequerente(checkboxElement) {
-  const docSection = checkboxElement.closest(".card").querySelector(".doc-section");
+  const card = checkboxElement.closest(".card");
+  const docSection = card.querySelector(".doc-section");
+
   if (checkboxElement.checked) {
     docSection.classList.remove("hidden");
-    const idade = checkboxElement.closest(".card").querySelector(".idade-requerente");
+    const idade = card.querySelector(".idade-requerente");
     if (idade) idade.classList.remove("hidden");
-    const residencia = checkboxElement.closest(".card").querySelector(".residencia-requerente");
+
+    const residencia = card.querySelector(".residencia-requerente");
     const processo = document.getElementById("tipo-processo-portugues").value;
     if (residencia) residencia.classList.toggle("hidden", !(document.getElementById("tipo-cidadania").value === "portuguesa" && processosComResidenciaPortugal.includes(processo)));
-    const representante = checkboxElement.closest(".card").querySelector(".dados-representante-menor");
+
+    const representante = card.querySelector(".dados-representante-menor");
     if (representante) representante.classList.toggle("hidden", !(document.getElementById("tipo-cidadania").value === "portuguesa" && ["netos-menores", "filho-menor"].includes(processo)));
-    const procuracao = checkboxElement.closest(".card").querySelector(".campo-procuracao-requerente");
+
+    const procuracao = card.querySelector(".campo-procuracao-requerente");
     if (procuracao) procuracao.classList.toggle("hidden", document.getElementById("tipo-cidadania").value !== "portuguesa");
-    const antecedentes = checkboxElement.closest(".card").querySelector(".campo-antecedentes-requerente");
+
+    const antecedentes = card.querySelector(".campo-antecedentes-requerente");
     if (antecedentes) antecedentes.classList.toggle("hidden", !(document.getElementById("tipo-cidadania").value === "portuguesa" && ["netos-maiores", "netos-menores"].includes(processo)));
   } else {
     docSection.classList.add("hidden");
-    const idade = checkboxElement.closest(".card").querySelector(".idade-requerente-valor");
+    const idade = card.querySelector(".idade-requerente-valor");
     if (idade) idade.value = "";
-    const representante = checkboxElement.closest(".card").querySelector(".dados-representante-menor");
+
+    const representante = card.querySelector(".dados-representante-menor");
     if (representante) {
       representante.classList.add("hidden");
       representante.querySelectorAll("input, select").forEach(el => el.value = "");
     }
-    const procuracao = checkboxElement.closest(".card").querySelector(".campo-procuracao-requerente");
-    if (procuracao) { procuracao.classList.add("hidden"); procuracao.querySelectorAll('input[type="radio"]').forEach(el => el.checked = false); }
-    const residencia = checkboxElement.closest(".card").querySelector(".residencia-requerente");
+
+    const procuracao = card.querySelector(".campo-procuracao-requerente");
+    if (procuracao) {
+      procuracao.classList.add("hidden");
+      procuracao.querySelectorAll('input[type="radio"]').forEach(el => el.checked = false);
+    }
+
+    const residencia = card.querySelector(".residencia-requerente");
     if (residencia) {
       residencia.classList.add("hidden");
       residencia.querySelectorAll('input[type="radio"]').forEach(r => r.checked = false);
@@ -422,6 +416,7 @@ function toggleRequerente(checkboxElement) {
       const pais = residencia.querySelector(".pais-residencia-valor");
       if (pais) pais.value = "";
     }
+
     docSection.querySelector(".doc-tipo").value = "";
     docSection.querySelector(".doc-num").value = "";
     docSection.querySelector(".doc-validade").value = "";
@@ -449,16 +444,9 @@ function adicionarDivergencia(btn) {
   item.dataset.divergenciaId = id;
   item.innerHTML = `
     <div class="divergencia-item-titulo">Divergência <span class="numero-divergencia">${numero}</span></div>
-    <div class="row">
-      <input class="divergencia-documento" placeholder="Documento (ex.: Certidão de nascimento)" aria-label="Documento da divergência">
-    </div>
-    <div class="row">
-      <input class="divergencia-dado-errado" placeholder="Qual dado está errado?" aria-label="Qual dado está errado?">
-    </div>
-    <div class="row">
-      <input class="divergencia-consta" placeholder="Como consta no documento" aria-label="Como consta no documento">
-      <input class="divergencia-deveria" placeholder="Como deveria constar" aria-label="Como deveria constar">
-    </div>
+    <div class="row"><input class="divergencia-documento" placeholder="Documento (ex.: Certidão de nascimento)" aria-label="Documento da divergência"></div>
+    <div class="row"><input class="divergencia-dado-errado" placeholder="Qual dado está errado?" aria-label="Qual dado está errado?"></div>
+    <div class="row"><input class="divergencia-consta" placeholder="Como consta no documento" aria-label="Como consta no documento"><input class="divergencia-deveria" placeholder="Como deveria constar" aria-label="Como deveria constar"></div>
     <button type="button" class="remove" onclick="removerDivergencia(this)">Remover divergência</button>`;
   lista.appendChild(item);
   atualizarNumerosDivergencias(card);
@@ -482,7 +470,7 @@ function atualizarNumerosDivergencias(card) {
 
 function proximaGeracao() {
   let maior = 0;
-  document.querySelectorAll("#geracoes .card").forEach(card => {
+  document.querySelectorAll("#geracoes .card:not(.cartao-conjuge-processo)").forEach(card => {
     maior = Math.max(maior, Number(card.dataset.geracao) || 0);
   });
   return maior + 1;
@@ -493,20 +481,39 @@ function criarPessoa(numeroGeracao, subGeracao = null) {
   div.className = "card";
   div.dataset.geracao = numeroGeracao;
   div.dataset.subgeracao = subGeracao || "";
+
   div.innerHTML = `
     <div class="title"></div>
     <div class="row">
       <input placeholder="Nome completo" class="nome">
-      <input placeholder="Data nascimento" class="nasc small">
+      <input placeholder="Data nascimento" class="nasc small" type="date">
     </div>
-    <div class="row campo-artigo-portugues hidden">
-      <input placeholder="Artigo pelo qual o ascendente originário foi reconhecido português" class="artigo-reconhecimento" aria-label="Artigo pelo qual o ascendente originário foi reconhecido português">
+
+    <div class="row campo-data-registro-portugal hidden">
+      <input placeholder="Data de registro" class="data-registro" type="date" aria-label="Data de registro">
     </div>
-    <div class="row">
+
+    <div class="portugal-extra campo-origem-portuguesa hidden">
+      <div class="field-label">Qual é a condição do português ascendente de origem?</div>
+      <select class="tipo-portugues-origem" onchange="toggleReconhecimento(this)">
+        <option value="">Selecione</option>
+        <option value="originario">Português originário</option>
+        <option value="reconhecido">Português reconhecido</option>
+      </select>
+      <div class="dados-reconhecimento hidden" style="margin-top:15px">
+        <div class="row">
+          <input class="artigo-reconhecimento" placeholder="Artigo pelo qual foi reconhecido">
+          <input class="data-reconhecimento" type="date" aria-label="Data do reconhecimento">
+        </div>
+      </div>
+    </div>
+
+    <div class="row campos-nascimento-alemanha">
       <input placeholder="País de nascimento" class="nasc-pais">
       <input placeholder="Estado de nascimento" class="nasc-estado">
       <input placeholder="Cidade de nascimento" class="nasc-cidade">
     </div>
+
     <div class="row">
       <select onchange="toggleCasamento(this)" class="casamento-status">
         <option value="solteiro">Solteiro(a)</option>
@@ -514,9 +521,28 @@ function criarPessoa(numeroGeracao, subGeracao = null) {
         <option value="casado">Casado(a)</option>
       </select>
       <input placeholder="Nome do cônjuge" class="conjuge-nome hidden">
-      <input placeholder="Data casamento" class="casamento-data hidden">
+      <input placeholder="Data casamento" class="casamento-data hidden" type="date">
       <label class="checkbox-container"><input type="checkbox" class="is-requerente" onchange="toggleRequerente(this)"> É Requerente?</label>
     </div>
+
+    <div class="portugal-extra perfilhacao-section hidden">
+      <div class="field-label">A perfilhação está comprovada?</div>
+      <div class="radio-wrap">
+        <label><input type="radio" class="perfilhacao-status" value="Sim" onchange="togglePerfilhacao(this)"> Sim</label>
+        <label><input type="radio" class="perfilhacao-status" value="Não" onchange="togglePerfilhacao(this)"> Não</label>
+      </div>
+      <div class="perfilhacao-detalhes hidden" style="margin-top:15px">
+        <div class="field-label">Como a perfilhação está comprovada?</div>
+        <select class="perfilhacao-comprovacao">
+          <option value="">Selecione</option>
+          <option value="Declaração de nascimento">Declaração de nascimento</option>
+          <option value="Averbação de casamento">Averbação de casamento</option>
+          <option value="Declaração de nascimento e averbação de casamento">Declaração de nascimento e averbação de casamento</option>
+          <option value="Outros – documentos complementares">Outros – documentos complementares</option>
+        </select>
+      </div>
+    </div>
+
     <div class="doc-section hidden">
       <div class="row idade-requerente hidden">
         <input type="number" min="0" placeholder="Idade do requerente" class="idade-requerente-valor">
@@ -532,7 +558,7 @@ function criarPessoa(numeroGeracao, subGeracao = null) {
       <div class="row">
         <select class="doc-tipo"><option value="">Selecione o documento</option><option value="Passaporte">Passaporte</option><option value="CNH">CNH</option><option value="RG">RG</option></select>
         <input placeholder="Número do Documento" class="doc-num">
-        <input placeholder="Validade do Doc." class="doc-validade small">
+        <input placeholder="Validade do Doc." class="doc-validade small" type="date">
       </div>
       <div class="portugal-extra hidden campo-procuracao-requerente">
         <div class="field-label">A procuração está correta?</div>
@@ -559,6 +585,7 @@ function criarPessoa(numeroGeracao, subGeracao = null) {
         </div>
       </div>
     </div>
+
     <div class="portugal-extra hidden campos-casamento-portugal">
       <div class="row">
         <input type="number" min="0" placeholder="Tempo de casados (anos)" class="tempo-casados">
@@ -583,35 +610,53 @@ function criarPessoa(numeroGeracao, subGeracao = null) {
       <button class="btn-add same-generation-button" onclick="adicionarMesmaGeracao(this)">+ Adicionar pessoa na mesma geração</button>
     </div>
     <button class="remove" onclick="removerGeracao(this)">Remover</button>`;
-  // Garante que cada grupo de opções de rádio seja exclusivo por pessoa.
+
   const radioName = `divergencia-pessoa-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   div.querySelectorAll(".divergencia-status").forEach(radio => radio.name = radioName);
   div.querySelectorAll(".residiu-fora").forEach(radio => radio.name = `residiu-fora-${radioName}`);
   div.querySelectorAll(".procuracao-requerente").forEach(radio => radio.name = `procuracao-${radioName}`);
+  div.querySelectorAll(".perfilhacao-status").forEach(radio => radio.name = `perfilhacao-${radioName}`);
+
   document.getElementById("geracoes").appendChild(div);
+
   const tipo = document.getElementById("tipo-cidadania")?.value;
   const processo = document.getElementById("tipo-processo-portugues")?.value;
-  const campoArtigo = div.querySelector(".campo-artigo-portugues");
+  const campoOrigem = div.querySelector(".campo-origem-portuguesa");
+  const campoRegistro = div.querySelector(".campo-data-registro-portugal");
+  const campoPerfilhacao = div.querySelector(".perfilhacao-section");
+  const camposNascimentoAlemanha = div.querySelector(".campos-nascimento-alemanha");
   const observacoesPessoa = div.querySelector(".observacoes-pessoa")?.closest(".row");
-  if (tipo !== "portuguesa") observacoesPessoa?.classList.add("hidden");
-  if (
-    tipo === "portuguesa" &&
-    processosGenealogicosPortugal.includes(processo) &&
-    Number(numeroGeracao) === 1
-  ) {
-    campoArtigo?.classList.remove("hidden");
+
+  if (tipo !== "portuguesa") {
+    observacoesPessoa?.classList.add("hidden");
   }
+
   if (tipo === "portuguesa") {
+    camposNascimentoAlemanha?.classList.add("hidden");
+
+    if (Number(numeroGeracao) === 1) {
+      campoOrigem?.classList.remove("hidden");
+    } else {
+      campoRegistro?.classList.remove("hidden");
+    }
+
+    if (
+      processosGenealogicosPortugal.includes(processo) &&
+      Number(numeroGeracao) > 1
+    ) {
+      campoPerfilhacao?.classList.remove("hidden");
+    }
+
     div.querySelector(".same-generation-button")?.classList.add("no-same-generation");
-    const idade = div.querySelector(".idade-requerente");
-    if (idade) idade.classList.add("portugal-age-row");
   }
+
   atualizarTitulos();
 }
 
 function addGeracao() {
   const processo = document.getElementById("tipo-processo-portugues")?.value;
   const tipo = document.getElementById("tipo-cidadania")?.value;
+
   if (tipo === "portuguesa" && ["casamento", "homologacao"].includes(processo)) {
     if (document.querySelector("#geracoes .cartao-conjuge-processo")) {
       alert("Os dados do cônjuge já foram adicionados.");
@@ -620,6 +665,7 @@ function addGeracao() {
     criarConjugePortugal(processo);
     return;
   }
+
   criarPessoa(proximaGeracao());
 }
 
@@ -629,10 +675,17 @@ function criarConjugePortugal(processo) {
   div.dataset.geracao = "2";
   div.dataset.parentesco = processo === "homologacao" ? "Ex-cônjuge" : "Cônjuge do português";
   const rotulo = processo === "homologacao" ? "Dados do ex-cônjuge" : "Dados do cônjuge do português (requerente)";
+
   div.innerHTML = `
     <div class="title">${rotulo}</div>
-    <div class="row"><input class="pt-conjuge-nome" placeholder="Nome completo do cônjuge"><input class="pt-conjuge-nascimento" type="date" aria-label="Data de nascimento do cônjuge"></div>
-    <div class="row"><input class="pt-conjuge-local-nascimento" placeholder="Local de nascimento do cônjuge"><input class="pt-profissao" placeholder="Profissão do requerente"></div>
+    <div class="row">
+      <input class="pt-conjuge-nome" placeholder="Nome completo do cônjuge">
+      <input class="pt-conjuge-nascimento" type="date" aria-label="Data de nascimento do cônjuge">
+    </div>
+    <div class="row">
+      <input class="pt-conjuge-data-registro" type="date" aria-label="Data de registro do cônjuge">
+      <input class="pt-profissao" placeholder="Profissão do requerente">
+    </div>
     <div class="row"><input class="pt-conjuge-idade" type="number" min="0" placeholder="Idade do requerente"></div>
     <div class="portugal-extra">
       <div class="field-label">O requerente já residiu fora do Brasil?</div>
@@ -650,11 +703,15 @@ function criarConjugePortugal(processo) {
     </div>
     <div class="divergencia-section">
       <div class="divergencia-heading">Análise Documental – Divergências Identificadas</div>
-      <div class="divergencia-opcoes"><label class="divergencia-opcao"><input type="radio" class="divergencia-status" name="div-conjuge-${Date.now()}" value="nao" checked onchange="toggleDivergencias(this)"> Não foram identificadas divergências</label><label class="divergencia-opcao"><input type="radio" class="divergencia-status" name="div-conjuge-${Date.now()}" value="sim" onchange="toggleDivergencias(this)"> Foram identificadas divergências</label></div>
+      <div class="divergencia-opcoes">
+        <label class="divergencia-opcao"><input type="radio" class="divergencia-status" name="div-conjuge-${Date.now()}" value="nao" checked onchange="toggleDivergencias(this)"> Não foram identificadas divergências</label>
+        <label class="divergencia-opcao"><input type="radio" class="divergencia-status" name="div-conjuge-${Date.now()}" value="sim" onchange="toggleDivergencias(this)"> Foram identificadas divergências</label>
+      </div>
       <div class="divergencias-detalhes hidden"><div class="divergencias-lista"></div><button type="button" class="btn-add-divergencia" onclick="adicionarDivergencia(this)">+ Adicionar divergência</button></div>
     </div>
     <div class="row" style="margin-top:15px"><textarea class="observacoes-pessoa" placeholder="Observações após a análise documental"></textarea></div>
     <button type="button" class="remove" onclick="this.closest('.cartao-conjuge-processo').remove()">Remover cônjuge</button>`;
+
   const name = `div-conjuge-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   div.querySelectorAll(".divergencia-status").forEach(r => r.name = name);
   document.getElementById("geracoes").appendChild(div);
@@ -672,20 +729,16 @@ function coletarCamposPortugal(container) {
   container.querySelectorAll("input, select, textarea").forEach(el => {
     if (el.type === "radio" && !el.checked) return;
     if (el.type === "checkbox" && !el.checked) return;
+
     let rotulo = el.getAttribute("placeholder") || el.getAttribute("aria-label") || el.name || "Informação";
+
     if (el.classList.contains("pt-documento-requerente")) rotulo = "A pessoa deste documento é o requerente?";
-    if (el.type === "radio" && el.name === "pt-requerente-conjuge") rotulo = "O requerente é um dos cônjuges?";
     if (el.type === "radio" && el.name === "pt-sentenca-transito") rotulo = "Possuímos a sentença de divórcio e o trânsito em julgado?";
     if (el.type === "radio" && el.name.startsWith("pt-procuracao-")) rotulo = "A procuração está correta?";
-    if (el.type === "radio" && el.name === "pt-casamento-residiu-fora") rotulo = "O requerente já residiu fora do Brasil?";
-    if (el.type === "radio" && el.name === "pt-casamento-nome-alterado") rotulo = "O nome do requerente foi alterado?";
-    if (el.type === "radio" && el.name === "pt-filhos-portugueses") rotulo = "Tem filhos reconhecidos como portugueses?";
     if (el.type === "radio" && el.name === "pt-filhos-reconhecidos") rotulo = "Tem filhos reconhecidos como portugueses?";
-    if (el.type === "radio" && el.name === "pt-transcricao-nome-alterado") rotulo = "O nome de algum nubente foi alterado?";
-    if (el.type === "radio" && el.name === "pt-requerente-transcricao") rotulo = "Quem será o requerente?";
     if (el.type === "radio" && el.name === "pt-conjuge-residiu-fora") rotulo = "O requerente já residiu fora do Brasil?";
     if (el.type === "radio" && el.name === "pt-conjuge-nome-alterado") rotulo = "O nome do requerente foi alterado?";
-    if (el.type === "radio" && el.name === "pt-filhos-reconhecidos") rotulo = "Tem filhos reconhecidos como portugueses?";
+
     const v = el.type === "checkbox" ? "Sim" : (el.value || "");
     if (String(v).trim()) resultado.push([rotulo, v]);
   });
@@ -695,24 +748,36 @@ function coletarCamposPortugal(container) {
 function adicionarDivergenciasDocumentoPDF(pdf, card, margemEsquerda) {
   let yLocal = pdf.lastAutoTable ? pdf.lastAutoTable.finalY + 5 : 40;
   const status = card.querySelector(".divergencia-status:checked")?.value || "nao";
-  pdf.setFont("helvetica", "bold"); pdf.setFontSize(10); pdf.setTextColor(17,24,37);
+
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(10);
+  pdf.setTextColor(17,24,37);
+
   if (yLocal > 265) { pdf.addPage(); yLocal = 20; }
+
   pdf.text("Análise Documental – Divergências Identificadas", margemEsquerda, yLocal);
   yLocal += 6;
+
   if (status === "nao") {
-    pdf.setFont("helvetica", "normal"); pdf.setFontSize(9.5);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(9.5);
     pdf.text("Não foram identificadas divergências documentais.", margemEsquerda, yLocal);
     return yLocal + 8;
   }
+
   const itens = Array.from(card.querySelectorAll(".divergencia-item"));
+
   if (!itens.length) {
-    pdf.setFont("helvetica", "normal"); pdf.setFontSize(9.5);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(9.5);
     pdf.text("Foram identificadas divergências, mas nenhum detalhe foi preenchido.", margemEsquerda, yLocal);
     return yLocal + 8;
   }
+
   itens.forEach((item, index) => {
     pdf.autoTable({
-      startY: yLocal, head: [],
+      startY: yLocal,
+      head: [],
       body: [
         [`Divergência ${index + 1} — Documento`, item.querySelector(".divergencia-documento")?.value.trim() || "Não informado"],
         ["Qual dado está errado?", item.querySelector(".divergencia-dado-errado")?.value.trim() || "Não informado"],
@@ -722,10 +787,13 @@ function adicionarDivergenciasDocumentoPDF(pdf, card, margemEsquerda) {
       theme: "grid",
       styles: { font: "helvetica", fontSize: 9, cellPadding: 3.2, overflow: "linebreak", textColor: [60,65,75], lineColor: [225,230,235], lineWidth: 0.2, valign: "top" },
       columnStyles: { 0: { cellWidth: 55, fontStyle: "bold", fillColor: [248,249,250], textColor: [80,90,100] }, 1: { cellWidth: "auto" } },
-      margin: { left: margemEsquerda, right: 14, bottom: 18 }, pageBreak: "auto", rowPageBreak: "avoid"
+      margin: { left: margemEsquerda, right: 14, bottom: 18 },
+      pageBreak: "auto",
+      rowPageBreak: "avoid"
     });
     yLocal = pdf.lastAutoTable.finalY + 4;
   });
+
   return yLocal + 5;
 }
 
@@ -734,75 +802,168 @@ function gerarPDF() {
     alert("Não foi possível carregar a biblioteca do PDF. Verifique sua conexão com a internet e tente novamente.");
     return;
   }
+
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF('p', 'mm', 'a4');
   const margemEsquerda = 14;
   const larguraUtil = 182;
   const tipoCidadania = document.getElementById("tipo-cidadania").value;
   const processoPortugal = document.getElementById("tipo-processo-portugues").value;
-  if (!tipoCidadania) { alert("Selecione o tipo de cidadania antes de gerar o PDF."); return; }
-  if (tipoCidadania === "portuguesa" && !processoPortugal) { alert("Selecione o tipo de processo português antes de gerar o PDF."); return; }
 
-  if (tipoCidadania === "portuguesa" && ["casamento", "transcricao", "homologacao"].includes(processoPortugal)) {
+  if (!tipoCidadania) {
+    alert("Selecione o tipo de cidadania antes de gerar o PDF.");
+    return;
+  }
+
+  if (tipoCidadania === "portuguesa" && !processoPortugal) {
+    alert("Selecione o tipo de processo português antes de gerar o PDF.");
+    return;
+  }
+
+  if (tipoCidadania === "portuguesa" && ["casamento", "homologacao"].includes(processoPortugal)) {
     let yPt = 36;
-    pdf.setTextColor(17,24,37); pdf.setFontSize(14); pdf.setFont("helvetica","bold");
+
+    pdf.setTextColor(17,24,37);
+    pdf.setFontSize(14);
+    pdf.setFont("helvetica","bold");
     pdf.text("EXTRATO DA REVISÃO DO PROCESSO DE CIDADANIA", 14, 16);
+
     pdf.setFillColor(17,24,37); pdf.rect(14,20,15,.8,"F");
     pdf.setFillColor(221,0,0); pdf.rect(29,20,15,.8,"F");
     pdf.setFillColor(212,175,55); pdf.rect(44,20,15,.8,"F");
+
     const nomeProcesso = document.querySelector('#tipo-processo-portugues option:checked')?.textContent || "";
-    pdf.setFont("helvetica","normal"); pdf.setFontSize(10); pdf.text("Cidadania Portuguesa — " + nomeProcesso,14,29);
-    // Inclui o cartão do português/linha familiar e a respetiva análise documental.
-    document.querySelectorAll("#geracoes > .card").forEach((c, index) => {
+    pdf.setFont("helvetica","normal");
+    pdf.setFontSize(10);
+    pdf.text("Cidadania Portuguesa — " + nomeProcesso,14,29);
+
+    document.querySelectorAll("#geracoes > .card").forEach((c) => {
       const ehConjuge = c.classList.contains("cartao-conjuge-processo");
       const nomePessoa = c.querySelector(".nome")?.value.trim() || c.querySelector(".pt-conjuge-nome")?.value.trim() || "Nome não informado";
-      pdf.setFont("helvetica", "bold"); pdf.setFontSize(11); pdf.setTextColor(17,24,37);
+
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(11);
+      pdf.setTextColor(17,24,37);
       pdf.text((ehConjuge ? "Cônjuge / ex-cônjuge: " : "Português / pessoa da linha familiar: ") + nomePessoa, 14, yPt);
       yPt += 4;
+
       const dadosPessoa = [];
+
       c.querySelectorAll("input, select, textarea").forEach(el => {
         if (el.closest(".divergencia-section") || el.classList.contains("observacoes-pessoa") || el.type === "button") return;
         if (el.type === "radio" && !el.checked) return;
         if (el.type === "checkbox" && !el.checked) return;
         if (el.classList.contains("same-generation-button")) return;
-        const rotulo = el.getAttribute("placeholder") || el.getAttribute("aria-label") || (el.classList.contains("is-requerente") ? "É requerente?" : el.classList.contains("doc-tipo") ? "Tipo de documento do requerente" : el.classList.contains("doc-num") ? "Número do documento do requerente" : el.classList.contains("doc-validade") ? "Validade do documento do requerente" : el.classList.contains("procuracao-requerente") ? "A procuração está correta?" : "Informação");
+
+        const rotulo = el.getAttribute("placeholder") || el.getAttribute("aria-label") ||
+          (el.classList.contains("is-requerente") ? "É requerente?" :
+          el.classList.contains("doc-tipo") ? "Tipo de documento do requerente" :
+          el.classList.contains("doc-num") ? "Número do documento do requerente" :
+          el.classList.contains("doc-validade") ? "Validade do documento do requerente" :
+          el.classList.contains("procuracao-requerente") ? "A procuração está correta?" : "Informação");
+
         const valor = el.type === "checkbox" ? "Sim" : (el.value || "");
         if (String(valor).trim()) dadosPessoa.push([rotulo, valor]);
       });
+
       if (dadosPessoa.length) {
-        pdf.autoTable({ startY:yPt, head:[], body:dadosPessoa, theme:"plain", styles:{font:"helvetica",fontSize:9.5,cellPadding:3.2,overflow:"linebreak",textColor:[60,65,75],valign:"top"}, columnStyles:{0:{cellWidth:65,fontStyle:"bold",textColor:[100,110,120]},1:{cellWidth:"auto"}}, margin:{left:14,right:14,bottom:18} });
+        pdf.autoTable({
+          startY:yPt,
+          head:[],
+          body:dadosPessoa,
+          theme:"plain",
+          styles:{font:"helvetica",fontSize:9.5,cellPadding:3.2,overflow:"linebreak",textColor:[60,65,75],valign:"top"},
+          columnStyles:{0:{cellWidth:65,fontStyle:"bold",textColor:[100,110,120]},1:{cellWidth:"auto"}},
+          margin:{left:14,right:14,bottom:18}
+        });
         yPt = pdf.lastAutoTable.finalY + 3;
       }
+
       yPt = adicionarDivergenciasDocumentoPDF(pdf, c, 14) + 3;
+
       const obsPessoa = c.querySelector(".observacoes-pessoa")?.value.trim();
       if (obsPessoa) {
-        pdf.autoTable({ startY:yPt, head:[], body:[["Observações após a análise documental",obsPessoa]], theme:"plain", styles:{font:"helvetica",fontSize:9.5,cellPadding:3.2,overflow:"linebreak"}, margin:{left:14,right:14,bottom:18} });
+        pdf.autoTable({
+          startY:yPt,
+          head:[],
+          body:[["Observações após a análise documental",obsPessoa]],
+          theme:"plain",
+          styles:{font:"helvetica",fontSize:9.5,cellPadding:3.2,overflow:"linebreak"},
+          margin:{left:14,right:14,bottom:18}
+        });
         yPt = pdf.lastAutoTable.finalY + 6;
       }
     });
+
     const dadosProcesso = coletarCamposPortugal(document.getElementById("campos-processo-portugues"));
+
     if (dadosProcesso.length) {
-      pdf.autoTable({ startY:yPt, head:[], body:dadosProcesso, theme:"plain", styles:{font:"helvetica",fontSize:9.5,cellPadding:3.2,overflow:"linebreak",textColor:[60,65,75],valign:"top"}, columnStyles:{0:{cellWidth:65,fontStyle:"bold",textColor:[100,110,120]},1:{cellWidth:"auto"}}, margin:{left:14,right:14,bottom:18} });
+      pdf.autoTable({
+        startY:yPt,
+        head:[],
+        body:dadosProcesso,
+        theme:"plain",
+        styles:{font:"helvetica",fontSize:9.5,cellPadding:3.2,overflow:"linebreak",textColor:[60,65,75],valign:"top"},
+        columnStyles:{0:{cellWidth:65,fontStyle:"bold",textColor:[100,110,120]},1:{cellWidth:"auto"}},
+        margin:{left:14,right:14,bottom:18}
+      });
       yPt = pdf.lastAutoTable.finalY + 10;
     }
+
     document.querySelectorAll("#lista-documentos-portugueses .portugal-doc-card").forEach((c, index) => {
       if (yPt > 255) { pdf.addPage(); yPt = 20; }
-      pdf.setFont("helvetica","bold"); pdf.setFontSize(11); pdf.setTextColor(17,24,37);
+
+      pdf.setFont("helvetica","bold");
+      pdf.setFontSize(11);
+      pdf.setTextColor(17,24,37);
       pdf.text(/assento de casamento/i.test(c.querySelector(".doc-title")?.textContent || "") ? "Assento de casamento" : "Documento " + (index+1) + ": " + (c.querySelector(".pt-documento-nome")?.value.trim() || "Não informado"),14,yPt);
       yPt += 4;
+
       const camposDoc = coletarCamposPortugal(c).filter(row => !["Nome do documento", "Observações sobre o documento"].includes(row[0]));
+
       if (camposDoc.length) {
-        pdf.autoTable({ startY:yPt, head:[], body:camposDoc, theme:"plain", styles:{font:"helvetica",fontSize:9.5,cellPadding:3.2,overflow:"linebreak",textColor:[60,65,75],valign:"top"}, columnStyles:{0:{cellWidth:65,fontStyle:"bold",textColor:[100,110,120]},1:{cellWidth:"auto"}}, margin:{left:14,right:14,bottom:18} });
+        pdf.autoTable({
+          startY:yPt,
+          head:[],
+          body:camposDoc,
+          theme:"plain",
+          styles:{font:"helvetica",fontSize:9.5,cellPadding:3.2,overflow:"linebreak",textColor:[60,65,75],valign:"top"},
+          columnStyles:{0:{cellWidth:65,fontStyle:"bold",textColor:[100,110,120]},1:{cellWidth:"auto"}},
+          margin:{left:14,right:14,bottom:18}
+        });
         yPt = pdf.lastAutoTable.finalY + 3;
       }
+
       yPt = adicionarDivergenciasDocumentoPDF(pdf,c,14) + 4;
+
       const obs = c.querySelector(".pt-documento-observacoes")?.value.trim();
-      if (obs) { pdf.autoTable({startY:yPt,head:[],body:[["Observações",obs]],theme:"plain",styles:{font:"helvetica",fontSize:9.5,cellPadding:3.2,overflow:"linebreak"},margin:{left:14,right:14,bottom:18}}); yPt=pdf.lastAutoTable.finalY+8; }
+      if (obs) {
+        pdf.autoTable({
+          startY:yPt,
+          head:[],
+          body:[["Observações",obs]],
+          theme:"plain",
+          styles:{font:"helvetica",fontSize:9.5,cellPadding:3.2,overflow:"linebreak"},
+          margin:{left:14,right:14,bottom:18}
+        });
+        yPt=pdf.lastAutoTable.finalY+8;
+      }
     });
+
     const observacoesGerais = document.querySelector(".pt-observacoes-processo")?.value.trim();
+
     if (observacoesGerais) {
-      pdf.autoTable({ startY: yPt, head: [], body: [["Observações gerais do processo", observacoesGerais]], theme: "plain", styles: { font: "helvetica", fontSize: 9.5, cellPadding: 3.2, overflow: "linebreak", textColor: [60,65,75], valign: "top" }, columnStyles: { 0: { cellWidth: 65, fontStyle: "bold" }, 1: { cellWidth: "auto" } }, margin: { left: 14, right: 14, bottom: 18 } });
+      pdf.autoTable({
+        startY: yPt,
+        head: [],
+        body: [["Observações gerais do processo", observacoesGerais]],
+        theme: "plain",
+        styles: { font: "helvetica", fontSize: 9.5, cellPadding: 3.2, overflow: "linebreak", textColor: [60,65,75], valign: "top" },
+        columnStyles: { 0: { cellWidth: 65, fontStyle: "bold" }, 1: { cellWidth: "auto" } },
+        margin: { left: 14, right: 14, bottom: 18 }
+      });
     }
+
     pdf.save("analise-cidadania-portuguesa.pdf");
     return;
   }
@@ -829,36 +990,71 @@ function gerarPDF() {
     const parentescoTexto = c.dataset.parentesco || parentesco[numeroGeracao] || "Descendente";
     const nome = c.querySelector(".nome").value.trim() || "Nome não informado";
     const nasc = c.querySelector(".nasc").value.trim() || "-";
+
     const paisNascimento = c.querySelector(".nasc-pais").value.trim() || "-";
     const estadoNascimento = c.querySelector(".nasc-estado").value.trim() || "-";
     const cidadeNascimento = c.querySelector(".nasc-cidade").value.trim() || "-";
+
     const statusCasamento = c.querySelector(".casamento-status").value;
     const casou = statusCasamento === "casado";
     const dataCasamento = casou ? (c.querySelector(".casamento-data").value.trim() || "-") : "-";
     const conjuge = casou ? (c.querySelector(".conjuge-nome").value.trim() || "-") : "-";
     const ehRequerente = c.querySelector(".is-requerente").checked;
+
     let statusTexto = statusCasamento === "casado" ? `Casado(a) em ${dataCasamento}` : statusCasamento === "divorciado" ? "Divorciado(a)" : "Solteiro(a)";
+
     const dadosFicha = [
       ["Data de Nascimento", nasc],
-      ["Local de Nascimento", `${cidadeNascimento} - ${estadoNascimento} - ${paisNascimento}`],
       ["Status de Casamento", statusTexto]
     ];
+
+    // Os campos de nascimento/local de nascimento são mantidos apenas na Alemanha.
+    if (tipoCidadania === "alema") {
+      dadosFicha.push(["Local de Nascimento", `${cidadeNascimento} - ${estadoNascimento} - ${paisNascimento}`]);
+    }
+
+    // Data de registro nas gerações portuguesas, exceto o ascendente de origem.
+    if (tipoCidadania === "portuguesa" && numeroGeracao > 1) {
+      dadosFicha.push(["Data de registro", c.querySelector(".data-registro")?.value.trim() || "-"]);
+    }
+
     if (casou) dadosFicha.push(["Nome do Cônjuge", conjuge]);
+
     if (
       tipoCidadania === "portuguesa" &&
       processosGenealogicosPortugal.includes(processoPortugal) &&
       numeroGeracao === 1
     ) {
-      dadosFicha.push([
-        "Artigo pelo qual o ascendente originário foi reconhecido português",
-        c.querySelector(".artigo-reconhecimento")?.value.trim() || "-"
-      ]);
+      const tipoOrigem = c.querySelector(".tipo-portugues-origem")?.value || "";
+      dadosFicha.push(["Condição do português ascendente de origem", tipoOrigem === "originario" ? "Português originário" : tipoOrigem === "reconhecido" ? "Português reconhecido" : "-"]);
+
+      if (tipoOrigem === "reconhecido") {
+        dadosFicha.push(["Artigo do reconhecimento", c.querySelector(".artigo-reconhecimento")?.value.trim() || "-"]);
+        dadosFicha.push(["Data do reconhecimento", c.querySelector(".data-reconhecimento")?.value || "-"]);
+      }
     }
+
+    // Perfilhação: somente nos processos genealógicos e para as gerações posteriores à origem.
+    if (
+      tipoCidadania === "portuguesa" &&
+      processosGenealogicosPortugal.includes(processoPortugal) &&
+      numeroGeracao > 1
+    ) {
+      const statusPerfilhacao = c.querySelector(".perfilhacao-status:checked")?.value || "";
+      dadosFicha.push(["A perfilhação está comprovada?", statusPerfilhacao || "Não informado"]);
+
+      if (statusPerfilhacao === "Sim") {
+        dadosFicha.push(["Comprovação da perfilhação", c.querySelector(".perfilhacao-comprovacao")?.value || "Não informado"]);
+      }
+    }
+
     if (casou && tipoCidadania === "portuguesa" && processoPortugal === "casamento") {
       dadosFicha.push(["Tempo de casados (anos)", c.querySelector(".tempo-casados")?.value.trim() || "-"]);
       dadosFicha.push(["Profissão do cônjuge", c.querySelector(".profissao-conjuge")?.value.trim() || "-"]);
     }
+
     dadosFicha.push(["É Requerente do Processo?", ehRequerente ? "Sim" : "Não"]);
+
     if (ehRequerente) {
       if (tipoCidadania === "portuguesa" && processosComResidenciaPortugal.includes(processoPortugal)) {
         const respostaResidencia = c.querySelector(".residiu-fora:checked")?.value;
@@ -866,14 +1062,24 @@ function gerarPDF() {
         const paisResidencia = c.querySelector(".pais-residencia-valor")?.value.trim();
         if (respostaResidencia === "Sim" && paisResidencia) dadosFicha.push(["País em que residiu", paisResidencia]);
       }
+
       if (tipoCidadania === "portuguesa") dadosFicha.push(["Idade do Requerente", c.querySelector(".idade-requerente-valor")?.value.trim() || "-"]);
+
       dadosFicha.push(["Tipo de Documento", c.querySelector(".doc-tipo").value]);
       dadosFicha.push(["Número do Documento", c.querySelector(".doc-num").value.trim() || "-"]);
       dadosFicha.push(["Validade do Documento", c.querySelector(".doc-validade").value.trim() || "-"]);
-      if (tipoCidadania === "portuguesa") dadosFicha.push(["A procuração está correta?", c.querySelector(".procuracao-requerente:checked")?.value || "Não informado"]);
+
+      if (tipoCidadania === "portuguesa") {
+        dadosFicha.push(["A procuração está correta?", c.querySelector(".procuracao-requerente:checked")?.value || "Não informado"]);
+      }
+
       const antecedentes = c.querySelector(".antecedentes-requerente:checked")?.value;
-      if (antecedentes && ["netos-maiores", "netos-menores"].includes(processoPortugal)) dadosFicha.push(["Possui certidão de antecedentes criminais?", antecedentes]);
+      if (antecedentes && ["netos-maiores", "netos-menores"].includes(processoPortugal)) {
+        dadosFicha.push(["Possui certidão de antecedentes criminais?", antecedentes]);
+      }
+
       const representante = c.querySelector(".dados-representante-menor");
+
       if (representante && !representante.classList.contains("hidden")) {
         dadosFicha.push(["Nome completo do pai", representante.querySelector(".pai-nome")?.value.trim() || "-"]);
         dadosFicha.push(["Tipo de documento do pai", representante.querySelector(".pai-doc-tipo")?.value || "-"]);
@@ -886,17 +1092,20 @@ function gerarPDF() {
       }
     }
 
-    // Cada pessoa começa com um título e uma ficha; o AutoTable controla quebras de página.
     const identificacaoGeracao = subGeracao ? `${numeroGeracao}.${subGeracao}` : `${numeroGeracao}`;
     let tituloTexto = `Geração ${identificacaoGeracao} - ${parentescoTexto}: ${nome}`;
     if (ehRequerente) tituloTexto += " [REQUERENTE DO PROCESSO]";
+
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(11);
     const linhasTitulo = pdf.splitTextToSize(tituloTexto, larguraUtil);
     const alturaTitulo = linhasTitulo.length * 5 + 5;
+
     garantirEspaco(alturaTitulo + 20);
+
     pdf.setTextColor(17, 24, 37);
     pdf.text(linhasTitulo, margemEsquerda, y);
+
     const linhaY = y + linhasTitulo.length * 5 + 1;
     pdf.setDrawColor(220, 225, 230);
     pdf.setLineWidth(0.3);
@@ -918,10 +1127,11 @@ function gerarPDF() {
         data.cell.styles.lineColor = [230,235,240];
       }
     });
+
     y = pdf.lastAutoTable.finalY + 8;
 
-    // Seção de divergências documentais no PDF.
     const statusDivergencia = c.querySelector(".divergencia-status:checked")?.value || "nao";
+
     garantirEspaco(18);
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(10);
@@ -937,6 +1147,7 @@ function gerarPDF() {
       y += 7;
     } else {
       const divergencias = Array.from(c.querySelectorAll(".divergencia-item"));
+
       if (divergencias.length === 0) {
         garantirEspaco(12);
         pdf.setFont("helvetica", "normal");
@@ -948,13 +1159,14 @@ function gerarPDF() {
           const documento = item.querySelector(".divergencia-documento").value.trim() || "Não informado";
           const consta = item.querySelector(".divergencia-consta").value.trim() || "Não informado";
           const deveria = item.querySelector(".divergencia-deveria").value.trim() || "Não informado";
+
           const tabelaDivergencia = [
             [`Divergência ${index + 1} — Documento`, documento],
             ["Qual dado está errado?", item.querySelector(".divergencia-dado-errado")?.value.trim() || "Não informado"],
             ["Como consta no documento", consta],
             ["Como deveria constar", deveria]
           ];
-          // A tabela pode continuar em outra página sem cortar texto nem perder as etiquetas.
+
           pdf.autoTable({
             startY: y,
             head: [],
@@ -969,16 +1181,28 @@ function gerarPDF() {
             pageBreak: "auto",
             rowPageBreak: "avoid"
           });
+
           y = pdf.lastAutoTable.finalY + 4;
         });
         y += 2;
       }
     }
+
     const observacoesPessoa = c.querySelector(".observacoes-pessoa")?.value.trim();
+
     if (observacoesPessoa) {
-      pdf.autoTable({ startY: y, head: [], body: [["Observações", observacoesPessoa]], theme: "plain", styles: { font: "helvetica", fontSize: 9.5, cellPadding: 3.2, overflow: "linebreak", textColor: [60,65,75], valign: "top" }, columnStyles: { 0: { cellWidth: 55, fontStyle: "bold" }, 1: { cellWidth: "auto" } }, margin: { left: margemEsquerda, right: 14, bottom: 18 } });
+      pdf.autoTable({
+        startY: y,
+        head: [],
+        body: [["Observações", observacoesPessoa]],
+        theme: "plain",
+        styles: { font: "helvetica", fontSize: 9.5, cellPadding: 3.2, overflow: "linebreak", textColor: [60,65,75], valign: "top" },
+        columnStyles: { 0: { cellWidth: 55, fontStyle: "bold" }, 1: { cellWidth: "auto" } },
+        margin: { left: margemEsquerda, right: 14, bottom: 18 }
+      });
       y = pdf.lastAutoTable.finalY + 5;
     }
+
     y += 8;
   });
 
@@ -988,10 +1212,6 @@ function gerarPDF() {
     pdf.save("analise-cidadania-alema.pdf");
   }
 }
-
-// Inicia o formulário com a primeira pessoa/geração.
-// A cidadania só é carregada depois da seleção inicial.
-
 </script>
 </body>
 </html>
