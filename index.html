@@ -615,7 +615,7 @@ function criarPessoa(numeroGeracao, subGeracao = null) {
       <div class="field-label">Qual é a condição do português ascendente de origem?</div>
       <select class="tipo-portugues-origem" onchange="toggleReconhecimento(this)">
         <option value="">Selecione</option>
-        <option value="originario">Português nato</option>
+        <option value="nato">Português nato</option>
         <option value="reconhecido">Português reconhecido</option>
       </select>
 
@@ -646,6 +646,7 @@ function criarPessoa(numeroGeracao, subGeracao = null) {
         <option value="solteiro">Solteiro(a)</option>
         <option value="divorciado">Divorciado(a)</option>
         <option value="casado">Casado(a)</option>
+        <option value="não consta">Não consta</option>
       </select>
       <input placeholder="Nome do cônjuge" class="conjuge-nome hidden">
       <input placeholder="Data casamento" class="casamento-data hidden" type="date">
