@@ -800,6 +800,7 @@ function criarPessoa(numeroGeracao, subGeracao = null) {
         <option value="solteiro">Solteiro(a)</option>
         <option value="divorciado">Divorciado(a)</option>
         <option value="casado">Casado(a)</option>
+         <option value="viuvo">Viúvo(a)</option>
         <option value="não consta">Não consta</option>
       </select>
       <input placeholder="Nome do cônjuge" class="conjuge-nome hidden">
@@ -1363,6 +1364,7 @@ function gerarPDF() {
       "solteiro": "Solteiro(a)",
       "casado": `Casado(a) em ${dataCasamento}`,
       "divorciado": "Divorciado(a)",
+      "viuvo": "Viúvo(a)",
       "não consta": "Não consta"
     };
     const statusTexto = statusCivil[statusCasamento] || "Não informado";
