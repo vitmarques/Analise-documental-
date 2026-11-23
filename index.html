@@ -373,10 +373,14 @@ function alterarProcessoPortugues() {
   const docs = document.getElementById("portugal-documentos");
 
   box.classList.toggle("hidden", !(genealogico || documental));
-  docs.classList.toggle("hidden", !documental);
+  docs.classList.toggle("hidden", !documental || processo === "casamento");
 
   document.getElementById("titulo-genealogia").textContent = documental ? "Dados do português / linha familiar" : "Linha Familiar";
-  document.getElementById("btn-add-geracao").textContent = ["casamento", "homologacao"].includes(processo) ? "+ Adicionar cônjuge do português" : "+ Adicionar pessoa / geração";
+  document.getElementById("btn-add-geracao").textContent = processo === "casamento"
+    ? "+ Adicionar pessoa / geração"
+    : processo === "homologacao"
+      ? "+ Adicionar cônjuge do português"
+      : "+ Adicionar pessoa / geração";
   document.getElementById("geracoes").innerHTML = "";
 
   if (genealogico || documental) {
@@ -390,7 +394,7 @@ function alterarProcessoPortugues() {
     el.classList.toggle("hidden", !(processo === "casamento" && estadoCivil === "casado"));
   });
 
-  if (documental) montarCamposProcessoPortugal(processo);
+  if (documental && processo !== "casamento") montarCamposProcessoPortugal(processo);
   else {
     document.getElementById("campos-processo-portugues").innerHTML = "";
     document.getElementById("lista-documentos-portugueses").innerHTML = "";
@@ -614,6 +618,52 @@ function calcularIdadePelaDataNascimento(dataNascimento) {
 
   if (aindaNaoFezAniversario) idade--;
   return String(idade);
+}
+
+
+function calcularAnosDesdeData(dataInformada) {
+  const valor = String(dataInformada || "").trim();
+  let dia, mes, ano;
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(valor)) {
+    [dia, mes, ano] = valor.split("/").map(Number);
+  } else if (/^\d{4}-\d{2}-\d{2}$/.test(valor)) {
+    [ano, mes, dia] = valor.split("-").map(Number);
+  } else {
+    return "";
+  }
+
+  const data = new Date(ano, mes - 1, dia);
+  const hoje = new Date();
+  if (data.getFullYear() !== ano || data.getMonth() !== mes - 1 ||
+      data.getDate() !== dia || data > hoje) return "";
+
+  let anos = hoje.getFullYear() - ano;
+  if (hoje.getMonth() < mes - 1 ||
+      (hoje.getMonth() === mes - 1 && hoje.getDate() < dia)) anos--;
+  return String(anos);
+}
+
+function atualizarTempoCasamento(campoData) {
+  const cartao = campoData.closest(".cartao-casamento-nubentes");
+  if (!cartao) return;
+  const campoTempo = cartao.querySelector(".tempo-casamento-calculado");
+  if (campoTempo) campoTempo.value = calcularAnosDesdeData(campoData.value);
+}
+
+function atualizarIdadeConjugePortugal(campoNascimento) {
+  const cartao = campoNascimento.closest(".cartao-conjuge-processo");
+  const campoIdade = cartao?.querySelector(".pt-conjuge-idade");
+  if (campoIdade) campoIdade.value = calcularIdadePelaDataNascimento(campoNascimento.value);
+}
+
+function alternarLocalResidenciaConjuge(radio, mostrar) {
+  const cartao = radio.closest(".cartao-conjuge-processo");
+  const campo = cartao?.querySelector(".pt-local-residencia-wrap");
+  campo?.classList.toggle("hidden", !mostrar);
+  if (!mostrar) {
+    const local = cartao?.querySelector(".pt-local-residencia");
+    if (local) local.value = "";
+  }
 }
 
 function atualizarIdadeRequerente(campoNascimento) {
@@ -959,9 +1009,28 @@ function addGeracao() {
   const processo = document.getElementById("tipo-processo-portugues")?.value;
   const tipo = document.getElementById("tipo-cidadania")?.value;
 
-  if (tipo === "portuguesa" && ["casamento", "homologacao"].includes(processo)) {
+  if (tipo === "portuguesa" && processo === "casamento") {
+    const conjuge = document.querySelector("#geracoes .cartao-conjuge-processo");
+    const casamento = document.querySelector("#geracoes .cartao-casamento-nubentes");
+
+    const botao = document.getElementById("btn-add-geracao");
+    if (!conjuge) {
+      criarConjugePortugal("casamento");
+      botao.textContent = "+ Adicionar outra geração";
+      return;
+    }
+    if (!casamento) {
+      criarCartaoCasamentoNubentes();
+      botao.textContent = "+ Gerações adicionadas";
+      return;
+    }
+    alert("Os dados do cônjuge e do casamento já foram adicionados.");
+    return;
+  }
+
+  if (tipo === "portuguesa" && processo === "homologacao") {
     if (document.querySelector("#geracoes .cartao-conjuge-processo")) {
-      alert("Os dados do cônjuge já foram adicionados.");
+      alert("Os dados do ex-cônjuge já foram adicionados.");
       return;
     }
     criarConjugePortugal(processo);
@@ -971,56 +1040,198 @@ function addGeracao() {
   criarPessoa(proximaGeracao());
 }
 
+function criarCartaoCasamentoNubentes() {
+  const div = document.createElement("div");
+  div.className = "card cartao-casamento-nubentes";
+  div.dataset.geracao = "3";
+  div.dataset.parentesco = "Assento de casamento português";
+
+  const radioName = `div-casamento-nubentes-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  div.innerHTML = `
+    <div class="title">Dados do Assento de casamento português</div>
+
+    <div class="row">
+      <input class="nubente-dele-nome" placeholder="Nome dele / primeiro nubente">
+      <input class="nubente-dela-nome" placeholder="Nome dela / segundo nubente">
+    </div>
+
+    <div class="row">
+      <div class="campo-data">
+        <label>Data do casamento</label>
+        <input inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA"
+          class="data-casamento-nubentes date-br" type="text"
+          aria-label="Data do casamento"
+          onchange="atualizarTempoCasamento(this)">
+      </div>
+      <div class="campo-data">
+        <label>Tempo de casados (anos)</label>
+        <input type="number" min="0" class="tempo-casamento-calculado"
+          placeholder="Calculado automaticamente" readonly>
+      </div>
+    </div>
+
+    <section class="divergencia-section">
+      <div class="divergencia-heading">Análise Documental – Divergências Identificadas</div>
+      <div class="divergencia-opcoes">
+        <label class="divergencia-opcao"><input type="radio" class="divergencia-status" name="${radioName}" value="nao" onchange="toggleDivergencias(this)"> Não foram identificadas divergências</label>
+        <label class="divergencia-opcao"><input type="radio" class="divergencia-status" name="${radioName}" value="sim" onchange="toggleDivergencias(this)"> Foram identificadas divergências</label>
+      </div>
+      <div class="divergencias-detalhes hidden">
+        <div class="divergencias-lista"></div>
+        <button type="button" class="btn-add-divergencia" onclick="adicionarDivergencia(this)">+ Adicionar divergência</button>
+      </div>
+    </section>
+
+    <div class="row" style="margin-top:15px">
+      <textarea class="observacoes-pessoa" placeholder="Observações após a análise documental"></textarea>
+    </div>
+    <button type="button" class="remove" onclick="this.closest('.cartao-casamento-nubentes').remove(); document.getElementById('btn-add-geracao').textContent = '+ Adicionar outra geração'">Remover casamento</button>`;
+
+  document.getElementById("geracoes").appendChild(div);
+}
+
 function criarConjugePortugal(processo) {
   const div = document.createElement("div");
   div.className = "card cartao-conjuge-processo";
   div.dataset.geracao = "2";
   div.dataset.parentesco = processo === "homologacao" ? "Ex-cônjuge" : "Cônjuge do português";
-  const rotulo = processo === "homologacao" ? "Dados do ex-cônjuge" : "Dados do cônjuge do português (requerente)";
+  const rotulo = processo === "homologacao"
+    ? "Dados do ex-cônjuge"
+    : "Dados do cônjuge do português (requerente)";
 
-  div.innerHTML = `
-    <div class="title">${rotulo}</div>
-    <div class="row">
-      <input class="pt-conjuge-nome" placeholder="Nome completo do cônjuge">
-      <input inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" class="pt-conjuge-nascimento date-br" type="text" aria-label="Data de nascimento do cônjuge">
-    </div>
-    <div class="row">
-      <input inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" class="pt-conjuge-data-registro date-br" type="text" aria-label="Data de registro do cônjuge">
-      <input class="pt-profissao" placeholder="Profissão do requerente">
-    </div>
-    <div class="row"><input class="pt-conjuge-idade" type="number" min="0" placeholder="Idade do requerente"></div>
-
-    <div class="portugal-extra">
-      <div class="field-label">O requerente já residiu fora do Brasil?</div>
-      <div class="radio-wrap"><label><input type="radio" name="pt-conjuge-residiu-fora" value="Não" onchange="togglePaisResidenciaPortugal(this, false)"> Não</label><label><input type="radio" name="pt-conjuge-residiu-fora" value="Sim" onchange="togglePaisResidenciaPortugal(this, true)"> Sim</label></div>
-      <div class="row pt-pais-residencia-wrap hidden"><input class="pt-pais-residencia" placeholder="Em qual país?"></div>
-    </div>
-
-    <div class="portugal-extra">
-      <div class="field-label">O nome do requerente foi alterado?</div>
-      <div class="radio-wrap"><label><input type="radio" name="pt-conjuge-nome-alterado" value="Não" onchange="alternarCampoCondicional(this, '.pt-como-nome-alterado')"> Não</label><label><input type="radio" name="pt-conjuge-nome-alterado" value="Sim" onchange="alternarCampoCondicional(this, '.pt-como-nome-alterado')"> Sim</label></div>
-      <div class="row pt-como-nome-alterado hidden"><input class="pt-como-nome-alterado-input" placeholder="Como o nome foi alterado?"></div>
-    </div>
-
-    <div class="portugal-extra">
-      <div class="field-label">Tem filhos reconhecidos como portugueses?</div>
-      <div class="radio-wrap"><label><input type="radio" name="pt-filhos-reconhecidos" value="Sim"> Sim</label><label><input type="radio" name="pt-filhos-reconhecidos" value="Não"> Não</label><label><input type="radio" name="pt-filhos-reconhecidos" value="Não se aplica"> Não se aplica</label></div>
-    </div>
-
-    <div class="divergencia-section">
-      <div class="divergencia-heading">Análise Documental – Divergências Identificadas</div>
-      <div class="divergencia-opcoes">
-        <label class="divergencia-opcao"><input type="radio" class="divergencia-status" name="div-conjuge-${Date.now()}" value="nao" onchange="toggleDivergencias(this)"> Não foram identificadas divergências</label>
-        <label class="divergencia-opcao"><input type="radio" class="divergencia-status" name="div-conjuge-${Date.now()}" value="sim" onchange="toggleDivergencias(this)"> Foram identificadas divergências</label>
+  if (processo === "homologacao") {
+    /* Mantém o cartão de homologação exatamente como já funcionava. */
+    div.innerHTML = `
+      <div class="title">${rotulo}</div>
+      <div class="row">
+        <input class="pt-conjuge-nome" placeholder="Nome completo do cônjuge">
+        <input inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" class="pt-conjuge-nascimento date-br" type="text" aria-label="Data de nascimento do cônjuge">
       </div>
-      <div class="divergencias-detalhes hidden"><div class="divergencias-lista"></div><button type="button" class="btn-add-divergencia" onclick="adicionarDivergencia(this)">+ Adicionar divergência</button></div>
-    </div>
+      <div class="row">
+        <input inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" class="pt-conjuge-data-registro date-br" type="text" aria-label="Data de registro do cônjuge">
+        <input class="pt-profissao" placeholder="Profissão do requerente">
+      </div>
+      <div class="row"><input class="pt-conjuge-idade" type="number" min="0" placeholder="Idade do requerente"></div>
+      <div class="portugal-extra">
+        <div class="field-label">O requerente já residiu fora do Brasil?</div>
+        <div class="radio-wrap"><label><input type="radio" name="pt-conjuge-residiu-fora" value="Não" onchange="togglePaisResidenciaPortugal(this, false)"> Não</label><label><input type="radio" name="pt-conjuge-residiu-fora" value="Sim" onchange="togglePaisResidenciaPortugal(this, true)"> Sim</label></div>
+        <div class="row pt-pais-residencia-wrap hidden"><input class="pt-pais-residencia" placeholder="Em qual país?"></div>
+      </div>
+      <div class="portugal-extra">
+        <div class="field-label">O nome do requerente foi alterado?</div>
+        <div class="radio-wrap"><label><input type="radio" name="pt-conjuge-nome-alterado" value="Não" onchange="alternarCampoCondicional(this, '.pt-como-nome-alterado')"> Não</label><label><input type="radio" name="pt-conjuge-nome-alterado" value="Sim" onchange="alternarCampoCondicional(this, '.pt-como-nome-alterado')"> Sim</label></div>
+        <div class="row pt-como-nome-alterado hidden"><input class="pt-como-nome-alterado-input" placeholder="Como o nome foi alterado?"></div>
+      </div>
+      <div class="portugal-extra">
+        <div class="field-label">Tem filhos reconhecidos como portugueses?</div>
+        <div class="radio-wrap"><label><input type="radio" name="pt-filhos-reconhecidos" value="Sim"> Sim</label><label><input type="radio" name="pt-filhos-reconhecidos" value="Não"> Não</label><label><input type="radio" name="pt-filhos-reconhecidos" value="Não se aplica"> Não se aplica</label></div>
+      </div>
+      <div class="divergencia-section">
+        <div class="divergencia-heading">Análise Documental – Divergências Identificadas</div>
+        <div class="divergencia-opcoes">
+          <label class="divergencia-opcao"><input type="radio" class="divergencia-status" name="div-ex-conjuge-${Date.now()}" value="nao" onchange="toggleDivergencias(this)"> Não foram identificadas divergências</label>
+          <label class="divergencia-opcao"><input type="radio" class="divergencia-status" name="div-ex-conjuge-${Date.now()}" value="sim" onchange="toggleDivergencias(this)"> Foram identificadas divergências</label>
+        </div>
+        <div class="divergencias-detalhes hidden"><div class="divergencias-lista"></div><button type="button" class="btn-add-divergencia" onclick="adicionarDivergencia(this)">+ Adicionar divergência</button></div>
+      </div>
+      <div class="row" style="margin-top:15px"><textarea class="observacoes-pessoa" placeholder="Observações após a análise documental"></textarea></div>
+      <button type="button" class="remove" onclick="this.closest('.cartao-conjuge-processo').remove()">Remover cônjuge</button>`;
+  } else {
+    const grupo = `conjuge-casamento-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    div.innerHTML = `
+      <div class="title">${rotulo}</div>
 
-    <div class="row" style="margin-top:15px"><textarea class="observacoes-pessoa" placeholder="Observações após a análise documental"></textarea></div>
-    <button type="button" class="remove" onclick="this.closest('.cartao-conjuge-processo').remove()">Remover cônjuge</button>`;
+      <div class="row">
+        <input class="pt-conjuge-nome" placeholder="Nome completo do cônjuge / requerente">
+        <div class="campo-data">
+          <label>Data de nascimento</label>
+          <input inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA"
+            class="pt-conjuge-nascimento date-br" type="text"
+            aria-label="Data de nascimento do cônjuge"
+            onchange="atualizarIdadeConjugePortugal(this)">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="campo-data">
+          <label>Idade (calculada automaticamente)</label>
+          <input class="pt-conjuge-idade" type="number" min="0"
+            placeholder="Idade calculada" readonly>
+        </div>
+        <select class="pt-conjuge-estado-civil">
+          <option value="">Selecione o estado civil atual</option>
+          <option value="Solteiro(a)">Solteiro(a)</option>
+          <option value="Casado(a)">Casado(a)</option>
+          <option value="Divorciado(a)">Divorciado(a)</option>
+          <option value="Viúvo(a)">Viúvo(a)</option>
+          <option value="União estável">União estável</option>
+        </select>
+      </div>
+
+      <div class="portugal-extra pt-residencia-conjuge">
+        <div class="field-label">O requerente residiu fora do Brasil por mais de 6 meses após os 16 anos?</div>
+        <div class="radio-wrap">
+          <label><input type="radio" name="${grupo}-residencia" value="Não" onchange="alternarLocalResidenciaConjuge(this, false)"> Não</label>
+          <label><input type="radio" name="${grupo}-residencia" value="Sim" onchange="alternarLocalResidenciaConjuge(this, true)"> Sim</label>
+        </div>
+        <div class="row pt-local-residencia-wrap hidden" style="margin-top:14px">
+          <input class="pt-local-residencia" placeholder="Informe o país/local de residência">
+        </div>
+      </div>
+
+      <div class="portugal-extra">
+        <div class="field-label">A procuração está correta?</div>
+        <div class="radio-wrap">
+          <label><input type="radio" name="${grupo}-procuracao" value="Sim"> Sim</label>
+          <label><input type="radio" name="${grupo}-procuracao" value="Não"> Não</label>
+        </div>
+      </div>
+
+      <div class="title" style="margin-top:18px">Documento de identificação do requerente</div>
+      <div class="row">
+        <select class="pt-conjuge-doc-tipo">
+          <option value="">Selecione o documento</option>
+          <option value="RG">RG</option>
+          <option value="Passaporte">Passaporte</option>
+          <option value="CNH">CNH</option>
+        </select>
+        <input class="pt-conjuge-doc-numero" placeholder="Número do documento">
+        <input inputmode="numeric" maxlength="10" placeholder="Validade DD/MM/AAAA"
+          class="pt-conjuge-doc-validade date-br" type="text" aria-label="Validade do documento">
+      </div>
+
+      <div class="portugal-extra">
+        <div class="field-label">Possui certidão de antecedentes criminais?</div>
+        <div class="radio-wrap">
+          <label><input type="radio" name="${grupo}-antecedentes" value="Sim"> Sim</label>
+          <label><input type="radio" name="${grupo}-antecedentes" value="Não"> Não</label>
+        </div>
+      </div>
+
+      <input type="checkbox" class="pt-conjuge-e-requerente" checked hidden>
+
+      <div class="divergencia-section">
+        <div class="divergencia-heading">Análise Documental – Divergências Identificadas</div>
+        <div class="divergencia-opcoes">
+          <label class="divergencia-opcao"><input type="radio" class="divergencia-status" name="${grupo}-divergencias" value="nao" onchange="toggleDivergencias(this)"> Não foram identificadas divergências</label>
+          <label class="divergencia-opcao"><input type="radio" class="divergencia-status" name="${grupo}-divergencias" value="sim" onchange="toggleDivergencias(this)"> Foram identificadas divergências</label>
+        </div>
+        <div class="divergencias-detalhes hidden">
+          <div class="divergencias-lista"></div>
+          <button type="button" class="btn-add-divergencia" onclick="adicionarDivergencia(this)">+ Adicionar divergência</button>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:15px">
+        <textarea class="observacoes-pessoa" placeholder="Observações após a análise documental"></textarea>
+      </div>
+      <button type="button" class="remove" onclick="this.closest('.cartao-conjuge-processo').remove(); document.querySelector('#geracoes .cartao-casamento-nubentes')?.remove(); document.getElementById('btn-add-geracao').textContent = '+ Adicionar pessoa / geração'">Remover cônjuge</button>`;
+  }
 
   const name = `div-conjuge-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  div.querySelectorAll(".divergencia-status").forEach(r => r.name = name);
+  if (processo === "homologacao") {
+    div.querySelectorAll(".divergencia-status").forEach(r => r.name = name);
+  }
   document.getElementById("geracoes").appendChild(div);
 }
 
@@ -1194,12 +1405,21 @@ function gerarPDF() {
 
     document.querySelectorAll("#geracoes > .card").forEach((c) => {
       const ehConjuge = c.classList.contains("cartao-conjuge-processo");
-      const nomePessoa = c.querySelector(".nome")?.value.trim() || c.querySelector(".pt-conjuge-nome")?.value.trim() || "Nome não informado";
+      const ehCasamentoNubentes = c.classList.contains("cartao-casamento-nubentes");
+      const nomePessoa = c.querySelector(".nome")?.value.trim() ||
+        c.querySelector(".pt-conjuge-nome")?.value.trim() ||
+        c.querySelector(".nubente-dele-nome")?.value.trim() ||
+        "Nome não informado";
 
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(11);
       pdf.setTextColor(17,24,37);
-      pdf.text((ehConjuge ? "Cônjuge / ex-cônjuge: " : "Português / pessoa da linha familiar: ") + nomePessoa, 14, yPt);
+      const tituloCartao = ehCasamentoNubentes
+        ? "Casamento dos nubentes: "
+        : ehConjuge
+          ? (processoPortugal === "homologacao" ? "Cônjuge / ex-cônjuge: " : "Cônjuge do português / requerente: ")
+          : "Português / pessoa da linha familiar: ";
+      pdf.text(tituloCartao + nomePessoa, 14, yPt);
       yPt += 4;
 
       const dadosPessoa = [];
@@ -1211,12 +1431,27 @@ function gerarPDF() {
         if (el.classList.contains("same-generation-button")) return;
 
         const rotulo = el.getAttribute("placeholder") || el.getAttribute("aria-label") ||
-          (el.classList.contains("is-requerente") ? "É requerente?" :
+          (el.classList.contains("pt-conjuge-estado-civil") ? "Estado civil atual do requerente" :
+          el.classList.contains("pt-conjuge-doc-tipo") ? "Tipo de documento do requerente" :
+          el.classList.contains("pt-conjuge-doc-numero") ? "Número do documento do requerente" :
+          el.classList.contains("pt-conjuge-doc-validade") ? "Validade do documento do requerente" :
+          el.classList.contains("pt-conjuge-e-requerente") ? "É requerente?" :
+          el.classList.contains("is-requerente") ? "É requerente?" :
           el.classList.contains("doc-tipo") ? "Tipo de documento do requerente" :
           el.classList.contains("doc-num") ? "Número do documento do requerente" :
           el.classList.contains("doc-validade") ? "Validade do documento do requerente" :
-          el.classList.contains("procuracao-requerente") ? "A procuração está correta?" : "Informação");
+          el.classList.contains("procuracao-requerente") ? "A procuração está correta?" :
+          el.classList.contains("endereco-dele-casamento") ? "Endereço dele no momento do casamento" :
+          el.classList.contains("endereco-dela-casamento") ? "Endereço dela no momento do casamento" :
+          el.classList.contains("data-casamento-nubentes") ? "Data do casamento" :
+          el.classList.contains("tempo-casamento-calculado") ? "Tempo de casados (anos)" :
+          "Informação");
 
+        let rotuloFinal = rotulo;
+        if (el.type === "radio" && el.name.includes("-residencia")) rotuloFinal = "Residiu fora do Brasil por mais de 6 meses após os 16 anos?";
+        if (el.type === "radio" && el.name.includes("-procuracao")) rotuloFinal = "A procuração está correta?";
+        if (el.type === "radio" && el.name.includes("-antecedentes")) rotuloFinal = "Possui certidão de antecedentes criminais?";
+        if (el.type === "radio" && el.name.includes("-divergencias")) rotuloFinal = "Análise documental – divergências identificadas";
         const valorBruto = el.type === "checkbox" ? "Sim" : (el.value || "");
 
         if (String(valorBruto).trim()) {
@@ -1224,9 +1459,13 @@ function gerarPDF() {
             ? formatarDataPortugal(valorBruto)
             : valorBruto;
 
-          dadosPessoa.push([rotulo, valor]);
+          dadosPessoa.push([rotuloFinal, valor]);
         }
       });
+
+      if (ehConjuge && processoPortugal === "casamento") {
+        dadosPessoa.push(["É requerente do processo?", "Sim"]);
+      }
 
       if (dadosPessoa.length) {
         pdf.autoTable({
